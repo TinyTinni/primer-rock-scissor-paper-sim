@@ -47,15 +47,3 @@ run_simulation <- function(w_draw, w_win, w_loose, pop_rock, pop_paper, pop_scis
   new_pop
 }
 
-
-
-rule_matrix <- gen_rule_matrix(0.735, 1.75, 0.525)
-population <- gen_even_population(500,500,500)
-
-for (i in 1:10000){
-  new_pop <- (rule_matrix*duel_matrix(population))%*%c(1,1,1)
-  new_pop
-  population <- gen_even_population(new_pop[1],new_pop[2],new_pop[3])
-}
-sum(new_pop)
-
