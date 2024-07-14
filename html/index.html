@@ -1,0 +1,181 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Simulating the Evolution of Rock, Paper, Scissors</title>
+    <link rel="stylesheet" href="sakura.css">
+</head>
+
+<body>
+    <a href="https://www.youtube.com/watch?v=tCoEYFbDVoI">Link to the video</a>
+    <div>
+        <form class="form-inline">
+            <label class="control-label"><strong>Weights:</strong></label>
+            <table>
+                <tr>
+                    <td><label for="w_win">Win
+                            <input type="number" class="input-mini" id="w_win" min="0.0" value="2.0">
+                        </label>
+                    </td>
+                    <td>
+                        <label for="w_draw">Draw
+                            <input type="number" class="input-mini" id="w_draw" min="0.0" value="1.0">
+                        </label>
+                    </td>
+                    <td>
+                        <label for="w_loose">Loose
+                            <input type="number" class="input-mini" id="w_loose" min="0.0" value="0.0">
+                        </label>
+                    </td>
+                </tr>
+            </table>
+
+            <label class="control-label"><strong>Population:</strong></label>
+            <table>
+                <tr>
+                    <td>
+                        <label for="pop_rock">Rocks
+                            <input type="number" class="input-mini" id="pop_rock" min="0" value="500">
+                        </label>
+                    </td>
+
+                    <td>
+                        <label for="pop_scissor">Scissor
+                            <input type="number" class="input-mini" id="pop_scissor" min="0" value="500">
+                        </label>
+                    </td>
+                    <td>
+                        <label for="pop_paper">Paper
+                            <input type="number" class="input-mini" id="pop_paper" min="0" value="500">
+                        </label>
+                    </td>
+                </tr>
+            </table>
+
+            <label class="control-label"><strong>Simulation:</strong></label>
+            <label for="runs">Runs
+                <input type="number" class="input-mini" id="runs" min="0" value="100">
+            </label>
+
+            <button type="button" id="run_simulation" disabled>Loading...</button>
+            <hr>
+
+
+            <label class="control-label"><strong>After Simulation:</strong></label>
+            <table>
+                <tr>
+                    <td>Rock:
+                        <div id="out_rocks">-</div>
+                    </td>
+                    <td>Scissors:
+                        <div id="out_scissor">-</div>
+                    </td>
+                    <td>Papers:
+                        <div id="out_paper">-</div>
+                    </td>
+                </tr>
+            </table>
+
+        </form>
+
+    </div>
+
+    <script type="module">
+        let start_button = document.getElementById("run_simulation")
+        start_button.setAttribute("disabled", true)
+
+        /* Create a webR console using the Console helper class */
+        import { WebR } from 'https://webr.r-wasm.org/latest/webr.mjs';
+        const webR = new WebR({ interactive: false });
+        await webR.init();
+
+
+
+        let run_simulation_in_r = await webR.evalR(`
+gen_rule_matrix <- function(draw_coeff, win_coeff, loose_coeff){
+  m <- matrix(0, nrow = 3, ncol = 3)
+  
+  m[1,] <- c(draw_coeff, loose_coeff, win_coeff)
+  m[2,] <- c(win_coeff, draw_coeff, loose_coeff)
+  m[3,] <- c(loose_coeff, win_coeff, draw_coeff)
+  
+  m
+}
+
+gen_even_population <- function(num_rock, num_paper, num_scissor){
+  vec <- c(rep(0, num_rock), rep(1, num_paper), rep(2, num_scissor))
+  len <- length(vec)
+  head(vec, len - (len%%2) )
+}
+
+duel_matrix <- function(population){
+  population <- sample(population)
+  m <- matrix(0, nrow=3, ncol=3)
+  if (length(population) == 0){
+    return(m)
+  }
+  for (i in seq(1, length(population), by=2)){
+    x <- population[i] + 1
+    y <- population[i+1] + 1
+    m[x, y] <- (m[x, y] + 1)
+  }
+  m + t(m)
+}
+
+run_simulation <- function(w_draw, w_win, w_loose, pop_rock, pop_paper, pop_scissor, runs){
+  rule_matrix <- gen_rule_matrix(w_draw, w_win, w_loose)
+  population <- gen_even_population(pop_rock,pop_paper,pop_scissor)
+  
+  for (i in 1:runs){
+    dm <- duel_matrix(population)
+    new_pop <- (rule_matrix*dm)%*%c(1,1,1)
+    population <- gen_even_population(new_pop[1],new_pop[2],new_pop[3])
+  }
+  new_pop
+}
+`);
+
+        run_simulation_in_r = await webR.evalR("run_simulation");
+
+        async function run_simulation() {
+
+            let pop_rock = document.getElementById('pop_rock').value
+            let pop_scissor = document.getElementById('pop_scissor').value
+            let pop_paper = document.getElementById('pop_paper').value
+
+            let w_win = Number(document.getElementById('w_win').value)
+            let w_draw = Number(document.getElementById('w_draw').value)
+            let w_loose = Number(document.getElementById('w_loose').value)
+
+            let runs = Number(document.getElementById('runs').value)
+
+            let out_rocks = document.getElementById('out_rocks')
+            let out_paper = document.getElementById('out_paper')
+            let out_scissor = document.getElementById('out_scissor')
+
+            start_button.setAttribute("disabled", true)
+            start_button.innerHTML = "Running..."
+            out_rocks.innerHTML = "-"
+            out_paper.innerHTML = "-"
+            out_scissor.innerHTML = "-"
+
+            let result = await run_simulation_in_r(w_draw, w_win, w_loose, pop_rock, pop_paper, pop_scissor, runs);
+
+            out_rocks.innerHTML = result.values[0]
+            out_paper.innerHTML = result.values[1]
+            out_scissor.innerHTML = result.values[2]
+
+            start_button.innerHTML = "Run Simulation"
+            start_button.removeAttribute("disabled")
+        }
+
+        start_button.onclick = async () => {
+            await run_simulation();
+        };
+        start_button.innerHTML = "Run Simulation"
+        start_button.removeAttribute("disabled")
+    </script>
+</body>
+
+</html>
