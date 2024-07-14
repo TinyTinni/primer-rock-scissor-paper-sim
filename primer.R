@@ -1,5 +1,6 @@
 library(tidyverse)
 library(ggplot2)
+library(ggtern)
 
 gen_rule_matrix <- function(draw_coeff=1.0, win_coeff=2.0, loose_coeff=0.0){
   m <- matrix(0, nrow = 3, ncol = 3, 
@@ -46,4 +47,17 @@ run_simulation <- function(w_draw, w_win, w_loose, pop_rock, pop_paper, pop_scis
   }
   new_pop
 }
+
+
+rule_matrix <- gen_rule_matrix(1, 2, 0)
+df <- tibble(epoch=0, rock=500, paper=500, scissor=500)
+epochs <- 1000
+
+for (i in 1:epochs){
+  population <- gen_even_population(df[i,]$rock,df[i,]$paper,df[i,]$scissor)
+  new_pop <- (rule_matrix*duel_matrix(population))%*%c(1,1,1)
+  df <- df %>% add_row(tibble_row(epoch=i, rock=new_pop[1], paper=new_pop[2], scissor=new_pop[3] ))
+}
+
+ggtern(data=df, mapping=aes(x=rock,y=paper,z=scissor)) + geom_point(mapping=aes(colour=epoch))
 
